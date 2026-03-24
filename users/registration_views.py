@@ -2,6 +2,7 @@ from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, login
 from django.utils import timezone
 from django.core.mail import send_mail
@@ -10,7 +11,7 @@ from .models import CustomUser, Registration, EmailVerification, PasswordReset, 
 from .registration_serializers import (
     RegistrationSerializer, EmailVerificationSerializer,
     PasswordResetSerializer, PasswordResetConfirmSerializer,
-    UserProfileSerializer, RegistrationDetailSerializer
+    UserProfileSerializer, RegistrationDetailSerializer, LoginSerializer
 )
 
 
@@ -88,30 +89,29 @@ class VerifyEmailView(APIView):
 
 class LoginView(APIView):
     """
-    API endpoint for user login.
+    API endpoint for user login with JWT tokens.
     """
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        
-        if not username or not password:
-            return Response({
-                'error': 'Username and password are required.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = authenticate(username=username, password=password)
-        
-        if user is not None:
-            if not user.is_active:
-                return Response({
-                    'error': 'Account is not active. Please verify your email.'
-                }, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
             
-            # In production, generate JWT token here
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
+            
+            # Update last login
+            user.last_login = timezone.now()
+            user.save()
+            
             return Response({
                 'message': 'Login successful.',
+                'access_token': str(access_token),
+                'refresh_token': str(refresh),
+                'token_type': 'Bearer',
+                'expires_in': 3600,  # 1 hour in seconds
                 'user': {
                     'id': user.id,
                     'username': user.username,
@@ -119,12 +119,68 @@ class LoginView(APIView):
                     'first_name': user.first_name,
                     'last_name': user.last_name,
                     'is_customer': user.is_customer,
-                    'is_staff_member': user.is_staff_member
+                    'is_staff_member': user.is_staff_member,
+                    'is_active': user.is_active,
+                    'last_login': user.last_login
                 }
             }, status=status.HTTP_200_OK)
-        else:
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogoutView(APIView):
+    """
+    API endpoint for user logout - blacklist refresh token.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh_token")
+            if not refresh_token:
+                return Response({
+                    'error': 'Refresh token is required.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            
             return Response({
-                'error': 'Invalid credentials.'
+                'message': 'Logout successful.'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Invalid token or token already blacklisted.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RefreshTokenView(APIView):
+    """
+    API endpoint for refreshing JWT access token.
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh_token")
+            if not refresh_token:
+                return Response({
+                    'error': 'Refresh token is required.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            refresh = RefreshToken(refresh_token)
+            access_token = refresh.access_token
+            
+            return Response({
+                'access_token': str(access_token),
+                'token_type': 'Bearer',
+                'expires_in': 3600  # 1 hour in seconds
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Invalid or expired refresh token.'
             }, status=status.HTTP_401_UNAUTHORIZED)
 
 
