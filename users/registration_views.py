@@ -150,9 +150,24 @@ class LogoutView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            return Response({
-                'error': 'Invalid token or token already blacklisted.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            # Handle specific JWT exceptions
+            error_msg = str(e)
+            if "Token is blacklisted" in error_msg:
+                return Response({
+                    'error': 'Token has already been blacklisted.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif "Token is invalid or expired" in error_msg:
+                return Response({
+                    'error': 'Invalid or expired refresh token.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif "Not enough segments" in error_msg:
+                return Response({
+                    'error': 'Invalid token format.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    'error': f'Logout failed: {error_msg}'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RefreshTokenView(APIView):
@@ -179,9 +194,24 @@ class RefreshTokenView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            return Response({
-                'error': 'Invalid or expired refresh token.'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            # Handle specific JWT exceptions
+            error_msg = str(e)
+            if "Token is blacklisted" in error_msg:
+                return Response({
+                    'error': 'Refresh token has been blacklisted. Please login again.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            elif "Token is invalid or expired" in error_msg:
+                return Response({
+                    'error': 'Invalid or expired refresh token. Please login again.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            elif "Not enough segments" in error_msg:
+                return Response({
+                    'error': 'Invalid token format.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    'error': f'Token refresh failed: {error_msg}'
+                }, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class PasswordResetRequestView(APIView):
