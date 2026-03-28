@@ -1,0 +1,22 @@
+version: 2.1
+
+jobs:
+  build-backend:
+    docker:
+      - image: cimg/base:stable
+
+    steps:
+      - checkout
+
+      - setup_remote_docker:
+          docker_layer_caching: true
+
+      - run:
+          name: Build backend Docker image
+          command: |
+            docker build -t retailshop-api:ci .
+
+workflows:
+  backend-workflow:
+    jobs:
+      - build-backend
