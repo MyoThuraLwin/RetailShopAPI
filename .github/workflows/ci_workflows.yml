@@ -50,8 +50,8 @@ jobs:
               git clone https://github.com/MyoThuraLwin/RetailShopAPI
               cd RetailShopAPI
               cp /home/ubuntu/myproject.env /home/ubuntu/RetailShopAPI/.env
-              docker build -t postgres_db:latest .
-              docker rm -f postgres_db || true
-              docker run -d                   --name postgres_db                   --network app_net                    -p 8000:8000                   django_app:latest
-              docker exec postgres_db python manage.py migrate
+              docker build -t retailshop-api:latest .
+              docker rm -f retailshop-backend || true
+              docker run -d                   --name retailshop-backend                   --network app_net                    -p 8000:8000                   django_app:latest
+              docker exec retailshop-backend python manage.py migrate
             EOF
