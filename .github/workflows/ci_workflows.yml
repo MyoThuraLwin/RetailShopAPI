@@ -24,3 +24,34 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: retailshop-backend:ci
+  deploy:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+  
+        - name: Start SSH agent and add key
+          uses: webfactory/ssh-agent@v0.9.0
+          with:
+            ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+  
+        - name: Add EC2 host to known_hosts
+          run: |
+            mkdir -p ~/.ssh
+            ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+  
+        - name: Deploy on EC2
+          run: |
+            ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << "EOF"
+              set -e
+              cd /home/ubuntu/
+              sudo rm -rf RetailShopAPI
+              git clone https://github.com/MyoThuraLwin/RetailShopAPI.git
+              cd RetailShopAPI
+              cp /home/ubuntu/myproject.env /home/ubuntu/RetailShopAPI/.env
+              sudo docker build -t retailshop-api:latest .
+              sudo docker rm -f retailshop-backend || true
+              sudo docker run -d --name retailshop-backend --network app_net -p 8000:8000 retailshop-api:latest
+              sudo docker exec retailshop-backend python manage.py migrate
+            EOF
