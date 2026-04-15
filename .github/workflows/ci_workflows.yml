@@ -50,8 +50,8 @@ jobs:
               git clone https://github.com/MyoThuraLwin/RetailShopAPI.git
               cd RetailShopAPI
               cp /home/ubuntu/myproject.env /home/ubuntu/RetailShopAPI/.env
-              docker build -t retailshop-api:latest .
-              docker rm -f retailshop-backend || true
-              docker run -d --name retailshop-backend --network app_net -p 8000:8000 retailshop-api:latest
-              docker exec retailshop-backend python manage.py migrate
+              sudo docker build -t retailshop-api:latest .
+              sudo docker rm -f retailshop-backend || true
+              sudo docker run -d --name retailshop-backend --network app_net -p 8000:8000 retailshop-api:latest
+              sudo docker exec retailshop-backend python manage.py migrate
             EOF
