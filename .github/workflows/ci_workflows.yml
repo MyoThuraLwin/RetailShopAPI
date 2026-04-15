@@ -49,7 +49,7 @@ jobs:
               sudo rm -rf RetailShopAPI
               git clone https://github.com/MyoThuraLwin/RetailShopAPI
               cd RetailShopAPI
-              cp /home/ubuntu/soft806.env /home/ubuntu/RetailShopAPI/.env
+              cp /home/ubuntu/myproject.env /home/ubuntu/RetailShopAPI/.env
               docker build -t django_app:latest .
               docker rm -f django_app || true
               docker run -d                   --name django_app                   --network app_net                    -p 8000:8000                   django_app:latest
